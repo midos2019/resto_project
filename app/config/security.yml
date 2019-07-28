@@ -1,20 +1,35 @@
 # To get started with security, check out the documentation:
 # https://symfony.com/doc/current/security.html
 security:
+    role_hierarchy:
+        ROLE_USER: ROLE_ADMIN
 
+    encoders:
+        AppBundle\Entity\User:
+              algorithm: bcrypt
+              cost: 12
     # https://symfony.com/doc/current/security.html#b-configuring-how-users-are-loaded
     providers:
         in_memory:
             memory: ~
+        your_db_provider:
+              entity: { class: AppBundle:User, property: email }
 
     firewalls:
         # disables authentication for assets and the profiler, adapt it according to your needs
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
-
         main:
-            anonymous: ~
+            logout_on_user_change: true
+            methods: [GET, POST]
+            # this firewall applies to all URLs
+            pattern: ^/.*
+            # but the firewall does not require login on every page
+            # denying access is done in access_control or in your controllers
+            anonymous: true
+            provider: your_db_provider
+            switch_user: true
             # activate different ways to authenticate
 
             # https://symfony.com/doc/current/security.html#a-configuring-how-your-users-will-authenticate
@@ -22,3 +37,42 @@ security:
 
             # https://symfony.com/doc/current/security/form_login_setup.html
             #form_login: ~
+            form_login:
+                login_path: login_app
+                check_path: login_check
+                use_forward: false
+                # Secure the login form against CSRF
+                # Reference: http://symfony.com/doc/current/cookbook/security/csrf_in_login_form.html
+                default_target_path: index_app
+                #always_use_default_target_path: false
+                target_path_parameter: _target_path
+                username_parameter: _username
+                password_parameter: _password
+                csrf_parameter:       _csrf_token
+                csrf_token_id:        authenticate
+                csrf_token_generator: security.csrf.token_manager
+                #success_handler: redirect.before.login
+                # login success redirecting options (read further below)
+
+            logout:
+                # The route name the user can go to in order to logout
+                path: logout
+                # The name of the route to redirect to after logging out
+                target: /login
+                #success_handler: redirect.after.logout
+                invalidate_session: true
+                csrf_parameter:       _csrf_token
+                csrf_token_id:        logout
+                delete_cookies:
+                        name:
+                            path:                 null
+                            domain:               null
+                handlers:             []
+
+    access_control:
+        # this is a catch-all for the admin area
+        # additional security lives in the controllers
+        - { path: ^/ccccc, roles: [ROLE_ADMIN] }
+        - { path: ^/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
+        # http://silex.sensiolabs.org/doc/providers/security.html
+        # http://docs.doctrine-project.org/projects/doctrine-dbal/en/latest/reference/query-builder.html
